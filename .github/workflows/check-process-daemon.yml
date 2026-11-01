@@ -103,6 +103,13 @@ jobs:
       RUST_BACKTRACE: "1"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Use short Cargo build paths
+        run: |
+          # Nested Zig dependency directories otherwise reach Windows' process cwd limit.
+          $target = Join-Path $env:RUNNER_TEMP 'pty'
+          "CARGO_TARGET_DIR=$target" >> $env:GITHUB_ENV
+          $root = Join-Path $env:GITHUB_WORKSPACE 'packages/process-daemon'
+          "PTY_CACHE_TARGET=$([System.IO.Path]::GetRelativePath($root, $target))" >> $env:GITHUB_ENV
       - name: Enable long dependency paths
         run: git config --global core.longpaths true
       - uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # v2.0.5
@@ -148,8 +155,8 @@ jobs:
       # No cache-on-failure: a timed-out run once saved a partial cache that broke re-runs.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
-          key: windows-${{ matrix.target }}-zig-0.16.0
-          workspaces: packages/process-daemon -> target
+          key: windows-${{ matrix.target }}-zig-0.16.0-short-target
+          workspaces: packages/process-daemon -> ${{ env.PTY_CACHE_TARGET }}
           # The native Ghostty build is now an output of the workspace crate.
           cache-workspace-crates: true
       - name: Check formatting
